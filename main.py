@@ -17,7 +17,7 @@ from huggingface_hub import InferenceClient
 
 # email account credentials
 username = ""
-password = "qsiq cwdl qdxn osht"
+password = ""
 imap_server = "imap.gmail.com"
 gvoice_address = "txt.voice.google.com"
 #this part doesnt work/isnt implemented yet
