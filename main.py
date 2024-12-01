@@ -131,8 +131,7 @@ def generate_uncensored_response():
     #conversation += f' AI response: {message}'
 
 def generate_response_memory():
-    #chat_memory.append({"role": "user", "content": gvoice_message})
-    #user_converstions['"(513) 394-3479" <15135497691.15133943479.J7vwWzXrsv@txt.voice.google.com>'].append({"role": "user", "content": gvoice_message})
+    
     user_converstions[sender_email].append({"role": "user", "content": gvoice_message})
     user_chat = user_converstions[sender_email]
     
