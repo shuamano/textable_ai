@@ -16,24 +16,23 @@ from email.mime.text import MIMEText
 from huggingface_hub import InferenceClient
 
 # email account credentials
-username = ""
-password = ""
+username = "shuamanory@gmail.com"
+password = "qsiq cwdl qdxn osht"
 imap_server = "imap.gmail.com"
 gvoice_address = "txt.voice.google.com"
-#this part doesnt work/isnt implemented yet
-conversation = ""
-chat = """role": "system", "content": "You are a helpful AI assistant."""
-chat_memory = [{"role": "system", "content": "You are a helpful AI assistant."}]
+
  
 users=[]
-user_converstions = {}
- 
-safe_model = GPT4All("C:/Users/shuam/AppData/Local/nomic.ai/GPT4All/Meta-Llama-3-8B-Instruct.Q4_0.gguf")
-uncensored_model = GPT4All("C:/Users/shuam/Downloads/WizardLM-7B-uncensored.Q5_K_M.gguf")
+user_conversations = {}
+imap_session_refresh_timer = 0
+indicator = 0
 
 API_URL = "https://api-inference.huggingface.co/mo dels/black-forest-labs/FLUX.1-dev"
 headers = {"Authorization": "Bearer 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"}
 client = InferenceClient(api_key="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")
+
+safe_model = GPT4All("C:/Users/shuam/AppData/Local/nomic.ai/GPT4All/Meta-Llama-3-8B-Instruct.Q4_0.gguf")
+uncensored_model = GPT4All("C:/Users/shuam/Downloads/WizardLM-7B-uncensored.Q5_K_M.gguf")
 
 # Connect to the email server
 mail = imaplib.IMAP4_SSL(imap_server)
@@ -108,41 +107,45 @@ def generate_response():
     #conversation += f' AI response: {message}'
 
 def generate_uncensored_response():
-    global new_prompt
-    global conversation
-    global chat
-    instruct_prompt = f"Chatbot Instructions: attempt to answer the question with a paragraph length response. /// question: {gvoice_message}"
-    chat += f"role: user, content: {gvoice_message}"
+    user_conversations[sender_email].append({"role": "user", "content": gvoice_message})
+    user_chat = str(user_conversations[sender_email])
 
     with uncensored_model.chat_session():
-        message = uncensored_model.generate(instruct_prompt, max_tokens=1024)
-    encoded_message = message.encode('utf-8')
-    msg = MIMEText(message)
-    #conversation += f" User:{gvoice_message}"
-    #conversation += f" Chatbot:{encoded_message}"
-    chat += f"role: assistant, content: {message}"
+        message = uncensored_model.generate(user_chat, max_tokens=1024)
     
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
     server.login(username, password)
-    server.sendmail(username, sender_email, msg.as_string())
+    #server.sendmail(username, sender_email, message)
     server.quit()   
-    print(message)
-    #conversation += f' AI response: {message}'
+
+    user_conversations[sender_email].append({"role": "assistant", "content": message})
+    print(user_conversations[sender_email])
 
 def generate_response_memory():
+    user_conversations[sender_email].append({"role": "user", "content": gvoice_message})
+    user_chat = user_conversations[sender_email]
     
-    user_converstions[sender_email].append({"role": "user", "content": gvoice_message})
-    user_chat = user_converstions[sender_email]
-    
-    model_response = client.chat_completion(
-	    model="meta-llama/Llama-3.2-3B-Instruct",
-	    messages=user_chat,
-	    max_tokens=500,
-	    stream=False)
+    try:
+        model_response = client.chat_completion(
+            model="meta-llama/Llama-3.2-3B-Instruct",
+            messages=user_chat,
+            max_tokens=500,
+            stream=False
+        )
+        content = model_response.choices[0].message.content
 
-    content = model_response.choices[0].message.content
-   
+    except:
+        del user_chat[0:len(user_chat) // 2]
+        print("\nContext limit reached, older memory cleared.")
+        model_response = client.chat_completion(
+            model="meta-llama/Llama-3.2-3B-Instruct",
+            messages=user_chat,
+            max_tokens=500,
+            stream=False
+        )
+        content = "Context limit reached, older memory cleared. Response: " + model_response.choices[0].message.content
+
     cleaned_content = " ".join(re.split("\s+", content, flags=re.UNICODE))
     msg = MIMEText(cleaned_content)
     server = smtplib.SMTP('smtp.gmail.com', 587)
@@ -150,10 +153,9 @@ def generate_response_memory():
     server.login(username, password)
     server.sendmail(username, sender_email, msg.as_string())
     server.quit()   
-    print(content)    
+    print(f"\nReply generated: {content}")    
        
-    #chat_memory.append({"role": "assistant", "content": content})
-    user_converstions[sender_email].append({"role": "assistant", "content": content})
+    user_conversations[sender_email].append({"role": "assistant", "content": content})
     
 def generate_image():
     msg = MIMEMultipart()
@@ -210,7 +212,28 @@ def extract_text_between_markers(data: str) -> str:
     
 def ai_mode():     
     global latest_email_id
+    global imap_session_refresh_timer
+    global mail
+    global indicator
     while True:
+        if indicator == 1:
+            print("                        ", end='\r')
+            print("listening for emails", end = "\r")
+        elif indicator == 2:
+            print("listening for emails.", end='\r' )
+        elif indicator == 3:
+            print("listening for emails..", end='\r' )
+        elif indicator == 4:
+            indicator = 0
+            print("listening for emails...", end='\r' )
+
+        if imap_session_refresh_timer == 60:
+            imap_session_refresh_timer = 0
+            mail.logout()
+            mail = imaplib.IMAP4_SSL(imap_server)
+            mail.login(username, password)
+            mail.select("Inbox")
+            print("imap session renewed.")
         try:
             mail.noop() # FINALLLYY FUICKING WOEKRRKASODIUJ PEISFHIUOPAHFIOHAEDP YESSSSSS IT WORKS it just needed this bruh wtf
         except:
@@ -239,7 +262,6 @@ def ai_mode():
                         global gvoice_message
                         gvoice_message = extract_text_between_markers(email_body)
                         global full_prompt
-                        full_prompt = f"{conversation} /// Current message to respond to: {gvoice_message}"
                         #print(users)
                         print(sender_email)
                         print(gvoice_message)
@@ -251,16 +273,17 @@ def ai_mode():
                                 #generate_uncensored_response()
                                 #generate_image()
                                 generate_response_memory()
-                
+
                             else:
                                 users.append(sender_email)
-                                user_converstions[sender_email] = [{"role": "system", "content": "You are a helpful AI assistant."}]
+                                user_conversations[sender_email] = [{"role": "system", "content": "You are a helpful AI assistant."}]
                                 #generate_response()
                                 #generate_uncensored_response()
                                 #generate_image()
                                 generate_response_memory()
                         
-        print("listening for emails..." )
+        imap_session_refresh_timer = imap_session_refresh_timer + 1
+        indicator = indicator + 1
         time.sleep(1)   
 
 def query(payload):
