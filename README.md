@@ -1,5 +1,7 @@
 # Textable AI
-## replies to google voice text messages with ai generated replies, allowing sms converstations with ai models. has some bloat, and unfinished sections for generating images.
+## replies to google voice text messages with ai generated replies, allowing sms converstations with ai models. 
+
+* responds to sms messages in 15-30 seconds
 * scrapes inbox for text notifs from gvoice
 * uses gpt4all for some models
 * uses the free huggingface inference api for the default model(llama 3.2 3b instruct)
@@ -7,11 +9,9 @@
 
 Issues:
 * unfinished sections for generating images
-* when the context window reaches max length, it ends/crashes the script
 * mail.noop() socket errors
 
 Things to add:
 * a proper cl interface
-* fix context length issue
 * have message 'keywords' to allow message passthrough or select other models or clear memory
   -'NOREPLY', 'UNCENSORED', 'CLEAR'
